@@ -1,8 +1,11 @@
+use std::iter::Peekable;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::str::Chars;
 use std::vec;
 
+#[allow(unused, unused_assignments, dead_code)]
 type NodeRef = Rc<RefCell<Node>>;
 type AttributeMap = HashMap<String, String>;
 
@@ -78,47 +81,120 @@ impl Node {
 }
 
 
+//tokens
+#[derive(Debug, Clone)]
+enum Token{
+    StartTag{
+        tag_name: String,
+        attributes: AttributeMap
+    },
+    EndTag{
+        tag_name: String,
+    },
+    Text(String),
+}
+
+fn tokenize(input: &str) -> Vec<Token> {
+    let mut tokens = Vec::new();
+    let mut chars = input.chars().peekable();
+
+    while let Some(c) = chars.next(){
+        if c == '<'{
+            if let Some('/') = chars.peek(){
+                chars.next();
+                let tag = collect_tag_name_until(&mut chars, '>');
+                tokens.push(Token::EndTag {
+                    tag_name: tag
+                });
+                chars.next();
+            }else{
+                let tag = collect_tag_name_until(&mut chars, '>');
+                tokens.push(Token::StartTag {
+                    tag_name: tag, 
+                    attributes: HashMap::new() 
+                });
+                chars.next();
+            }
+        }else{
+            let mut text = String::new();
+            text.push(c);
+            while let Some(&next) = chars.peek(){
+                if next == '<'{
+                    break;
+                }
+                text.push(chars.next().unwrap());
+            }
+            if !text.trim().is_empty(){
+                tokens.push(Token::Text(text));
+            }
+        }
+    }
+    return tokens;
+}
+
+fn collect_tag_name_until(chars: &mut Peekable<Chars>, stop_char: char) -> String{
+    let mut tag_name = String::new();
+    while let Some(&ch) = chars.peek(){
+        if ch == stop_char{
+            break;
+        }
+        tag_name.push(chars.next().unwrap());
+    }
+    return tag_name.trim().to_string();
+}
+
+
+
 fn main() {
-    let text = Node::text("Hello World".into());
-    let title_text = Node::text("Document".into());
 
-    let p = Node::element(
-        "p".into(), 
-        HashMap::from([
-            ("id".to_string(), "navbar".to_string()),
-        ]), 
-        vec![text],
-    );
-
-    let body = Node::element(
-        "body".into(),
-        HashMap::from([
-            ("className".to_string(), "bg-black".to_string()),
-            ("title".to_string(), "drag_to_sidebar".to_string()),
-        ]),
-        vec![p],
-    );
+    let input = "<html><body><p>Hello World</p></body></html>";
+    let tokens = tokenize(input);
+    for i in tokens{
+        println!("{:?}", i);
+    }
 
 
-    let title = Node::element(
-        "title".into(),
-        HashMap::new(),
-        vec![title_text],
-    );
 
-    let head = Node::element(
-        "head".into(),
-        HashMap::new(),
-        vec![title],
-    );
+    // let text = Node::text("Hello World".into());
+    // let title_text = Node::text("Document".into());
 
-    let html = Node::element(
-        "html".into(),
-        HashMap::from([
-            ("lang".to_string(), "en".to_string()),
-        ]),
-        vec![head, body],
-    );
+    // let p = Node::element(
+    //     "p".into(), 
+    //     HashMap::from([
+    //         ("id".to_string(), "navbar".to_string()),
+    //     ]), 
+    //     vec![text],
+    // );
 
-    Node::print(&html); 
+    // let body = Node::element(
+    //     "body".into(),
+    //     HashMap::from([
+    //         ("className".to_string(), "bg-black".to_string()),
+    //         ("title".to_string(), "drag_to_sidebar".to_string()),
+    //     ]),
+    //     vec![p],
+    // );
+
+
+    // let title = Node::element(
+    //     "title".into(),
+    //     HashMap::new(),
+    //     vec![title_text],
+    // );
+
+    // let head = Node::element(
+    //     "head".into(),
+    //     HashMap::new(),
+    //     vec![title],
+    // );
+
+    // let html = Node::element(
+    //     "html".into(),
+    //     HashMap::from([
+    //         ("lang".to_string(), "en".to_string()),
+    //     ]),
+    //     vec![head, body],
+    // );
+
+    // Node::print(&html); 
 }
