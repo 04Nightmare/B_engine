@@ -168,8 +168,14 @@ fn parse_tag_content(input: &str) -> (String, AttributeMap){
 
 
     while char_iter.peek().is_some(){
-        let (key, value) = parse_attributes(&mut char_iter);
-        attributes.insert(key, value);
+        if let Some(&ch) = char_iter.peek(){
+            if ch.is_alphabetic(){
+                let (key, value) = parse_attributes(&mut char_iter);
+                attributes.insert(key, value);
+            }else{
+                break;
+            }
+        }
         while let Some(&ch) = char_iter.peek(){
             if !ch.is_whitespace(){
                 break;
@@ -241,7 +247,7 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
 
 fn main() {
-    let html_input = "<html><body><div id=\"main\" class=\"box\">attribute parsing</div><p>Hello World</p></body></html>";
+    let html_input = "<html><body class=\"container\"><div id=\"main\" class=\"box\">attribute parsing</div><p>Hello World</p></body></html>";
     let tokens = tokenize(html_input);
     let dom = dom_builder(tokens.clone());
     Node::print(&dom);
