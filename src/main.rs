@@ -146,6 +146,8 @@ fn collect_tag_content_until(chars: &mut Peekable<Chars>, stop_char: char) -> St
 fn parse_tag_content(input: &str) -> (String, AttributeMap){
     let mut char_iter = input.chars().peekable();
     let mut tag_name = String::new();
+    let mut attributes = HashMap::new();
+
     while let Some(&ch) = char_iter.peek(){
         if ch.is_whitespace(){
             break;
@@ -153,6 +155,10 @@ fn parse_tag_content(input: &str) -> (String, AttributeMap){
         tag_name.push(char_iter.next().unwrap());
     }
     
+    if char_iter.peek().is_none(){
+        return (tag_name, attributes);
+    }
+
     while let Some(&ch) = char_iter.peek(){
         if !ch.is_whitespace(){
             break;
@@ -160,7 +166,6 @@ fn parse_tag_content(input: &str) -> (String, AttributeMap){
         char_iter.next();
     }
 
-    let mut attributes = HashMap::new();
 
     while char_iter.peek().is_some(){
         let (key, value) = parse_attributes(&mut char_iter);
@@ -203,8 +208,12 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
     for token in tokens{
         match token {
-            Token::StartTag { tag_name, .. } => {
-                let node = Node::element(tag_name, Default::default(), vec![]);
+            Token::StartTag { tag_name, attributes } => {
+                let mut attri = HashMap::new();
+                for (k, v) in attributes{
+                    attri.insert(k, v);
+                }
+                let node = Node::element(tag_name, attri, vec![]);
                 stack
                     .last()
                     .unwrap()
@@ -232,7 +241,7 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
 
 fn main() {
-    let html_input = "<html><body><div>attribute parsing</div><p>Hello World</p></body></html>";
+    let html_input = "<html><body><div id=\"main\" class=\"box\">attribute parsing</div><p>Hello World</p></body></html>";
     let tokens = tokenize(html_input);
     let dom = dom_builder(tokens.clone());
     Node::print(&dom);
