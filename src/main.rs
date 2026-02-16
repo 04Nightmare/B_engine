@@ -101,16 +101,17 @@ fn tokenize(input: &str) -> Vec<Token> {
         if c == '<'{
             if let Some('/') = chars.peek(){
                 chars.next();
-                let tag = collect_tag_name_until(&mut chars, '>');
+                let tag = collect_tag_content_until(&mut chars, '>');
                 tokens.push(Token::EndTag {
                     tag_name: tag
                 });
                 chars.next();
             }else{
-                let tag = collect_tag_name_until(&mut chars, '>');
+                let full_content = collect_tag_content_until(&mut chars, '>');
+                let (tag_name, attributes) = parse_tag_content(&full_content);
                 tokens.push(Token::StartTag {
-                    tag_name: tag, 
-                    attributes: HashMap::new() 
+                    tag_name: tag_name, 
+                    attributes: attributes,
                 });
                 chars.next();
             }
@@ -131,7 +132,7 @@ fn tokenize(input: &str) -> Vec<Token> {
     return tokens;
 }
 
-fn collect_tag_name_until(chars: &mut Peekable<Chars>, stop_char: char) -> String{
+fn collect_tag_content_until(chars: &mut Peekable<Chars>, stop_char: char) -> String{
     let mut tag_name = String::new();
     while let Some(&ch) = chars.peek(){
         if ch == stop_char{
@@ -140,6 +141,59 @@ fn collect_tag_name_until(chars: &mut Peekable<Chars>, stop_char: char) -> Strin
         tag_name.push(chars.next().unwrap());
     }
     return tag_name.trim().to_string();
+}
+
+fn parse_tag_content(input: &str) -> (String, AttributeMap){
+    let mut char_iter = input.chars().peekable();
+    let mut tag_name = String::new();
+    while let Some(&ch) = char_iter.peek(){
+        if ch.is_whitespace(){
+            break;
+        }
+        tag_name.push(char_iter.next().unwrap());
+    }
+    
+    while let Some(&ch) = char_iter.peek(){
+        if !ch.is_whitespace(){
+            break;
+        }
+        char_iter.next();
+    }
+
+    let mut attributes = HashMap::new();
+
+    while char_iter.peek().is_some(){
+        let (key, value) = parse_attributes(&mut char_iter);
+        attributes.insert(key, value);
+        while let Some(&ch) = char_iter.peek(){
+            if !ch.is_whitespace(){
+                break;
+            }
+            char_iter.next();
+        }
+    }
+    return (tag_name, attributes);
+}
+
+fn parse_attributes(char_iter: &mut Peekable<Chars>) -> (String, String){
+    let mut key = String::new();
+    while let Some(&ch) = char_iter.peek(){
+        if ch == '='{
+            break;
+        }
+        key.push(char_iter.next().unwrap());
+    }
+    char_iter.next();
+    char_iter.next();
+    let mut value = String::new();
+    while let Some(&ch) = char_iter.peek(){
+        if ch == '"'{
+            break;
+        }
+        value.push(char_iter.next().unwrap());
+    }
+    char_iter.next();
+    return (key.trim().to_string(), value);
 }
 
 
@@ -178,7 +232,7 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
 
 fn main() {
-    let html_input = "<html><body><p>Hello World</p></body></html>";
+    let html_input = "<html><body><div>attribute parsing</div><p>Hello World</p></body></html>";
     let tokens = tokenize(html_input);
     let dom = dom_builder(tokens.clone());
     Node::print(&dom);
