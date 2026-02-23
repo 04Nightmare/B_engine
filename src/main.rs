@@ -1,6 +1,7 @@
 mod css;
 
-use css::stylesheet::Stylesheet;
+use css::stylesheet::{Stylesheet, Selector};
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::iter::Peekable;
@@ -250,33 +251,53 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
     return root;
 }
 
+
+fn matches(element: &ElementData, selector: &Selector) -> bool {
+    match selector{
+        Selector::Type(tag) => &element.tag_name == tag,
+        Selector::Class(class_name) => {
+            if let Some(classes) = element.attributes.get("class"){
+                classes.split_whitespace().any(|c| c == class_name)
+            }else{
+                false
+            }
+        }
+        Selector::Id(id) => {
+            element.attributes.get("id") == Some(id)
+        }
+    }
+    //return true;
+}
+
 fn main() {
     let css_input = "div { color: red; font-size: 16px; }
                     .box { margin: 10px; }
                     #main { padding: 5px; }";
 
     let stylesheet = Stylesheet::parse_css(css_input);
-    println!("Parsed CSS: {:#?}", stylesheet);
+    println!("{:#?}", stylesheet);
 
     let html_input = "<html><body class=\"container\"><div id=\"main\" class=\"box\">attribute parsing</div><p>Hello World</p></body></html>";
     let tokens = tokenize(html_input);
-    let dom = dom_builder(tokens.clone());
+    let dom = dom_builder(tokens);
+    println!("{:#?}", &dom);
+    println!();
     Node::print(&dom);
     println!();
-    for i in tokens {
-        match i {
-            Token::StartTag {
-                tag_name,
-                attributes,
-            } => {
-                println!("StartTag: {}, attrs: {:?}", tag_name, attributes);
-            }
-            Token::EndTag { tag_name } => {
-                println!("EndTag: {}", tag_name);
-            }
-            Token::Text(text) => {
-                println!("Text: {}", text);
-            }
-        }
-    }
+    // for i in tokens {
+    //     match i {
+    //         Token::StartTag {
+    //             tag_name,
+    //             attributes,
+    //         } => {
+    //             println!("StartTag: {}, attrs: {:?}", tag_name, attributes);
+    //         }
+    //         Token::EndTag { tag_name } => {
+    //             println!("EndTag: {}", tag_name);
+    //         }
+    //         Token::Text(text) => {
+    //             println!("Text: {}", text);
+    //         }
+    //     }
+    // }
 }
