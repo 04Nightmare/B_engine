@@ -3,6 +3,7 @@ mod dom;
 
 use dom::Node;
 use css::stylesheet::{Stylesheet, Selector};
+use css::style_tree::{StyledNode};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -187,9 +188,11 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
 
 fn main() {
-    let css_input = "div { color: red; font-size: 16px; }
-                    .box { margin: 10px; }
-                    #main { padding: 5px; }";
+    let css_input = "
+        div   { color: red; font-size: 16px; }
+        .box  { margin: 10px; }
+        #main { padding: 5px; }
+    ";
 
     let stylesheet = Stylesheet::parse_css(css_input);
     println!("{:#?}", stylesheet);
@@ -201,6 +204,13 @@ fn main() {
     println!();
     Node::print(&dom);
     println!();
+    println!("{}", "*".repeat(50));
+    println!();
+
+    let styled = StyledNode::style_tree_builder(&dom, &stylesheet);
+    println!("=== Styled Tree ===\n");
+    StyledNode::print_style_tree(&styled, 0);
+
     // for i in tokens {
     //     match i {
     //         Token::StartTag {
