@@ -1,5 +1,7 @@
 mod css;
+mod dom;
 
+use dom::Node;
 use css::stylesheet::{Stylesheet, Selector};
 
 use std::cell::RefCell;
@@ -8,87 +10,18 @@ use std::iter::Peekable;
 use std::rc::Rc;
 use std::str::Chars;
 
+use crate::dom::{AttributeMap, NodeRef};
+
 
 #[allow(unused, unused_assignments, dead_code)]
-type NodeRef = Rc<RefCell<Node>>;
-type AttributeMap = HashMap<String, String>;
 
-#[derive(Debug, Clone)]
-struct Node {
-    children: Vec<NodeRef>,
-    node_type: NodeType,
-}
-
-#[derive(Debug, Clone)]
-enum NodeType {
-    Element(ElementData),
-    Text(String),
-}
-
-#[derive(Debug, Clone, Default)]
-struct ElementData {
-    tag_name: String,
-    attributes: AttributeMap,
-}
-
-impl Node {
-    fn text(data: String) -> NodeRef {
-        let text_node = Node {
-            children: vec![],
-            node_type: NodeType::Text(data),
-        };
-        return Rc::new(RefCell::new(text_node));
-    }
-
-    fn element(tag_name: String, attributes: AttributeMap, children: Vec<NodeRef>) -> NodeRef {
-        let element_data = ElementData {
-            tag_name,
-            attributes,
-        };
-        let element_node = Node {
-            children,
-            node_type: NodeType::Element(element_data),
-        };
-        return Rc::new(RefCell::new(element_node));
-    }
-}
-
-impl Node {
-    fn dom_traverse_print(node: &NodeRef, indent: usize) {
-        let node = node.borrow();
-        let padding = " ".repeat(indent);
-
-        match &node.node_type {
-            NodeType::Text(text) => {
-                println!("{}\"{}\"", padding, text);
-            }
-
-            NodeType::Element(ele) => {
-                print!("{}<{}", padding, ele.tag_name);
-                for (k, v) in &ele.attributes {
-                    print!(" {}=\"{}\"", k, v);
-                }
-                println!(">");
-
-                for child in &node.children {
-                    Node::dom_traverse_print(child, indent + 2);
-                }
-                println!("{}</{}>", padding, ele.tag_name);
-            }
-        }
-    }
-
-    fn print(node: &NodeRef) {
-        Self::dom_traverse_print(node, 0);
-    }
-}
 
 //tokens
 #[derive(Debug, Clone)]
 enum Token {
     StartTag {
         tag_name: String,
-        attributes: AttributeMap,
+        attributes: HashMap<String, String>,
     },
     EndTag {
         tag_name: String,
@@ -144,7 +77,7 @@ fn collect_tag_content_until(chars: &mut Peekable<Chars>, stop_char: char) -> St
     return tag_name.trim().to_string();
 }
 
-fn parse_tag_content(input: &str) -> (String, AttributeMap) {
+fn parse_tag_content(input: &str) -> (String, HashMap<String, String>) {
     let mut char_iter = input.chars().peekable();
     let mut tag_name = String::new();
     let mut attributes = HashMap::new();
@@ -252,22 +185,6 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 }
 
 
-fn matches(element: &ElementData, selector: &Selector) -> bool {
-    match selector{
-        Selector::Type(tag) => &element.tag_name == tag,
-        Selector::Class(class_name) => {
-            if let Some(classes) = element.attributes.get("class"){
-                classes.split_whitespace().any(|c| c == class_name)
-            }else{
-                false
-            }
-        }
-        Selector::Id(id) => {
-            element.attributes.get("id") == Some(id)
-        }
-    }
-    //return true;
-}
 
 fn main() {
     let css_input = "div { color: red; font-size: 16px; }
