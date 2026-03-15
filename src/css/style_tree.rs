@@ -7,7 +7,7 @@ pub type PropertyMap = HashMap<String, String>;
 type Specificity = (u8, u8, u8);
 
 pub struct StyledNode {
-    pub node: NodeRef,
+    pub node: NodeRef,       //Rc<RefCell<Node>>
     pub specified_values: PropertyMap,
     pub children: Vec<StyledNode>,
 }

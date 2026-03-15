@@ -1,5 +1,6 @@
 mod css;
 mod dom;
+mod layout;
 
 use dom::Node;
 use css::stylesheet::{Stylesheet, Selector};
