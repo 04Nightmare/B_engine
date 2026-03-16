@@ -55,3 +55,55 @@ impl Dimensions{
         return Rect {x, y, width, height};
     }
 }
+
+
+//Box Type
+#[derive(Debug, Clone)]
+pub enum BoxType {
+    Block,
+    Inline,
+    Anonymous,
+}
+
+pub struct LayoutBox<'a> {
+    pub dimensions: Dimensions,
+    pub box_type:   BoxType,
+    pub children:   Vec<LayoutBox<'a>>,
+    pub styled_node: Option<&'a StyledNode>,
+}
+
+impl<'a> LayoutBox<'a> {
+    fn new(box_type: BoxType, styled_node: Option<&'a StyledNode>) -> Self {
+        return LayoutBox {
+            dimensions: Dimensions::default(),
+            box_type,
+            children: Vec::new(),
+            styled_node,
+        };
+    }
+
+    fn value(&self, name: &str) -> Option<&str> {
+        let value = self.styled_node
+            .and_then(|n| n.specified_values.get(name))
+            .map(|s| s.as_str());
+
+        return value;
+    }
+
+    fn px(&self, name: &str) -> f32 {
+        let px = self.value(name)
+            .and_then(|v| v.strip_suffix("px")?.trim().parse().ok())  //directly parsed the px.
+            .unwrap_or(0.0);
+
+        return px;
+    }
+
+    fn get_or_create_anonymous(&mut self) -> &mut LayoutBox<'a> {
+        if self.children.last().map(|c| c.box_type == BoxType::Anonymous) != Some(true) {
+           self.children.push(LayoutBox::new(BoxType::Anonymous, None));
+        }
+        return self.children.last_mut().unwrap();
+    }
+}
+
+
