@@ -58,7 +58,7 @@ impl Dimensions{
 
 
 //Box Type
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BoxType {
     Block,
     Inline,
@@ -106,4 +106,30 @@ impl<'a> LayoutBox<'a> {
     }
 }
 
+
+//CSS helper
+fn display(node: &StyledNode) -> Option<BoxType> {
+       if let Some(val) = node.specified_values.get("display") {
+        return match val.as_str() {
+            "block" => Some(BoxType::Block),
+            "inline" => Some(BoxType::Inline),
+            "none" => None,
+            _  => Some(BoxType::Inline),
+        };
+    }
+
+    match &node.node.borrow().node_type {
+        NodeType::Text(_) => Some(BoxType::Inline),
+        NodeType::Element(e) => match e.tag_name.as_str() {
+            "div" | "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+            | "body" | "html" | "ul" | "ol" | "li"
+            | "section" | "article" | "header" | "footer" | "main"
+            | "document" => Some(BoxType::Block),
+ 
+            "head" | "script" | "style" => None,
+ 
+            _ => Some(BoxType::Inline),
+        },
+    }
+}
 
