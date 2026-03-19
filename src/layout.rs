@@ -133,3 +133,110 @@ fn display(node: &StyledNode) -> Option<BoxType> {
     }
 }
 
+pub fn build_layout_tree<'a>(styled: &'a StyledNode) -> Option<LayoutBox<'a>> {
+    let box_type = display(styled)?;
+    let mut layout_box = LayoutBox::new(box_type.clone(), Some(styled));
+ 
+    for child in &styled.children {
+        let child_box_type = match display(child) {
+            Some(t) => t,
+            None    => continue,
+        };
+ 
+        match child_box_type {
+            BoxType::Block => {
+                if let Some(child_layout) = build_layout_tree(child) {
+                    layout_box.children.push(child_layout);
+                }
+            }
+ 
+            BoxType::Inline | BoxType::Anonymous => {
+                if let Some(child_layout) = build_layout_tree(child) {
+                    layout_box
+                        .get_or_create_anonymous()
+                        .children
+                        .push(child_layout);
+                    }
+            }
+        }
+    }
+    return Some(layout_box);
+}
+
+
+fn layout_block(layout_box: &mut LayoutBox, containing: &Dimensions) {
+    // Step 1: width is resolved from the containing block's width.
+    calculate_block_width(layout_box, containing);
+ 
+    // Step 2: position (x, y) is set based on containing block + sibling heights.
+    calculate_block_position(layout_box, containing);
+ 
+    // Step 3: recurse — lay out children inside this box.
+    layout_block_children(layout_box);
+ 
+    // Step 4: height is either explicit or the sum of children.
+    calculate_block_height(layout_box);
+}
+
+fn calculate_block_width(layout_box: &mut LayoutBox, containing: &Dimensions){
+    let container_width = containing.content.width;
+
+    let margin_left = layout_box.px("margin-left");
+    let margin_right = layout_box.px("margin-right");
+    let border_left = layout_box.px("border-left");
+    let border_right = layout_box.px("border-rigth");
+    let padding_left = layout_box.px("padding-left");
+    let padding_right = layout_box.px("padding-rigth");
+
+    let width_auto = layout_box.value("width").map_or(true, |v| v == "auto");
+    let width = if width_auto {
+        (container_width - margin_left - margin_right - border_left - border_right - padding_left - padding_right).max(0.0)
+    }else {
+        layout_box.px("width")
+    };
+
+    layout_box.dimensions.content.width = width;
+    layout_box.dimensions.margin.left = margin_left;
+    layout_box.dimensions.margin.right = margin_right;
+    layout_box.dimensions.border.left = border_left;
+    layout_box.dimensions.border.right = border_right;
+    layout_box.dimensions.padding.left = padding_left;
+    layout_box.dimensions.padding.right = padding_right;
+} 
+
+
+fn calculate_block_position(layout_box: &mut LayoutBox, containing: &Dimensions){
+    let margin_top = layout_box.px("margin-top");
+    let margin_bottom = layout_box.px("margin-bottom");
+    let border_top = layout_box.px("border-top");
+    let border_bottom = layout_box.px("border-bottom");
+    let padding_top = layout_box.px("padding-top");
+    let padding_bottom = layout_box.px("padding-bottom");
+
+    layout_box.dimensions.margin.top     = margin_top;
+    layout_box.dimensions.margin.bottom  = margin_bottom;
+    layout_box.dimensions.border.top     = border_top;
+    layout_box.dimensions.border.bottom  = border_bottom;
+    layout_box.dimensions.padding.top    = padding_top;
+    layout_box.dimensions.padding.bottom = padding_bottom;
+
+    layout_box.dimensions.content.x = containing.content.x 
+        + layout_box.dimensions.margin.left
+        + layout_box.dimensions.border.left
+        + layout_box.dimensions.padding.left;
+
+    layout_box.dimensions.content.y = containing.content.y
+        + containing.content.height
+        + layout_box.dimensions.margin.right
+        + layout_box.dimensions.border.right
+        + layout_box.dimensions.padding.right;
+}
+
+
+pub fn layout<'a>(layout_box: &mut LayoutBox<'a>, containing: &Dimensions) {
+    match layout_box.box_type {
+        BoxType::Block | BoxType::Anonymous => layout_block(layout_box, containing),
+        BoxType::Inline => {}
+    }
+}
+
