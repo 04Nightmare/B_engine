@@ -92,7 +92,8 @@ impl<'a> LayoutBox<'a> {
 
     fn px(&self, name: &str) -> f32 {
         let px = self.value(name)
-            .and_then(|v| v.strip_suffix("px")?.trim().parse().ok())  //directly parsed the px.
+            //.and_then(|v| v.strip_suffix("px")?.trim().parse().ok())  //directly parsed the px.
+            .and_then(|v| parse_px(v)) 
             .unwrap_or(0.0);
 
         return px;
@@ -108,6 +109,10 @@ impl<'a> LayoutBox<'a> {
 
 
 //CSS helper
+fn parse_px(value: &str) -> Option<f32>{
+    value.strip_suffix("px")?.trim().parse().ok()
+}
+
 fn display(node: &StyledNode) -> Option<BoxType> {
        if let Some(val) = node.specified_values.get("display") {
         return match val.as_str() {
@@ -178,6 +183,8 @@ fn layout_block(layout_box: &mut LayoutBox, containing: &Dimensions) {
     calculate_block_height(layout_box);
 }
 
+
+//Position
 fn calculate_block_width(layout_box: &mut LayoutBox, containing: &Dimensions){
     let container_width = containing.content.width;
 
@@ -203,7 +210,6 @@ fn calculate_block_width(layout_box: &mut LayoutBox, containing: &Dimensions){
     layout_box.dimensions.padding.left = padding_left;
     layout_box.dimensions.padding.right = padding_right;
 } 
-
 
 fn calculate_block_position(layout_box: &mut LayoutBox, containing: &Dimensions){
     let margin_top = layout_box.px("margin-top");
@@ -232,6 +238,26 @@ fn calculate_block_position(layout_box: &mut LayoutBox, containing: &Dimensions)
         + layout_box.dimensions.padding.right;
 }
 
+
+//Height
+fn calculate_block_height(layout_box: &mut LayoutBox){
+    if let Some(h) = layout_box.value("height").and_then(parse_px) {
+        layout_box.dimensions.content.height = h;
+    }
+}
+
+
+//Children
+fn layout_block_children(layout_box: &mut LayoutBox){
+    let mut containing_snapshot = layout_box.dimensions.clone();
+ 
+    for child in &mut layout_box.children {
+        layout(child, &containing_snapshot);
+        containing_snapshot.content.height += child.dimensions.margin_box().height;
+    }
+ 
+    layout_box.dimensions.content.height = containing_snapshot.content.height;
+}
 
 pub fn layout<'a>(layout_box: &mut LayoutBox<'a>, containing: &Dimensions) {
     match layout_box.box_type {
