@@ -5,14 +5,17 @@ mod layout;
 use dom::Node;
 use css::stylesheet::{Stylesheet, Selector};
 use css::style_tree::{StyledNode};
+use layout::{build_layout_tree, layout, print_layout_tree, Rect, Dimensions};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::default;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::str::Chars;
 
 use crate::dom::{AttributeMap, NodeRef};
+
 
 
 #[allow(unused, unused_assignments, dead_code)]
@@ -212,20 +215,19 @@ fn main() {
     println!("=== Styled Tree ===\n");
     StyledNode::print_style_tree(&styled, 0);
 
-    // for i in tokens {
-    //     match i {
-    //         Token::StartTag {
-    //             tag_name,
-    //             attributes,
-    //         } => {
-    //             println!("StartTag: {}, attrs: {:?}", tag_name, attributes);
-    //         }
-    //         Token::EndTag { tag_name } => {
-    //             println!("EndTag: {}", tag_name);
-    //         }
-    //         Token::Text(text) => {
-    //             println!("Text: {}", text);
-    //         }
-    //     }
-    // }
+    //Root browser viewpoprt
+    let viewport = Dimensions{
+        content: Rect { x: 0.0, y: 0.0, width: 800.0, height: 0.0 },
+        ..Default::default()
+    };
+
+    if let Some(mut layout_root) = build_layout_tree(&styled){
+        layout(&mut layout_root, &viewport);
+        println!();
+        println!("{}", "*".repeat(50));
+        println!();
+        println!("\n=== Layout Tree ===\n");
+        print_layout_tree(&layout_root, 0);
+    }
+   
 }

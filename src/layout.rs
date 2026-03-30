@@ -266,3 +266,34 @@ pub fn layout<'a>(layout_box: &mut LayoutBox<'a>, containing: &Dimensions) {
     }
 }
 
+
+//Printing
+pub fn print_layout_tree(node: &LayoutBox, indent: usize){
+    let padding = " ".repeat(indent);
+    let d = &node.dimensions;
+ 
+    let label = match node.box_type {
+        BoxType::Block => "Block",
+        BoxType::Inline => "Inline",
+        BoxType::Anonymous => "Anonymous",
+    };
+ 
+    let tag = node.styled_node.map(|sn| {
+        match &sn.node.borrow().node_type {
+            NodeType::Element(e) => format!("<{}>", e.tag_name),
+            NodeType::Text(t) => format!("\"{}\"", t.trim()),
+        }
+    }).unwrap_or_else(|| "(anon)".to_string());
+ 
+    println!(
+        "{}{} {}  →  x:{:.1} y:{:.1} w:{:.1} h:{:.1}  [margin t:{:.1} r:{:.1} b:{:.1} l:{:.1}]",
+        padding, label, tag,
+        d.content.x, d.content.y, d.content.width, d.content.height,
+        d.margin.top, d.margin.right, d.margin.bottom, d.margin.left,
+    );
+ 
+    for child in &node.children {
+        print_layout_tree(child, indent + 2);
+    }
+}
+
