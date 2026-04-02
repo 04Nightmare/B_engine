@@ -219,11 +219,11 @@ fn calculate_block_position(layout_box: &mut LayoutBox, containing: &Dimensions)
     let padding_top = layout_box.px("padding-top");
     let padding_bottom = layout_box.px("padding-bottom");
 
-    layout_box.dimensions.margin.top     = margin_top;
-    layout_box.dimensions.margin.bottom  = margin_bottom;
-    layout_box.dimensions.border.top     = border_top;
-    layout_box.dimensions.border.bottom  = border_bottom;
-    layout_box.dimensions.padding.top    = padding_top;
+    layout_box.dimensions.margin.top = margin_top;
+    layout_box.dimensions.margin.bottom = margin_bottom;
+    layout_box.dimensions.border.top = border_top;
+    layout_box.dimensions.border.bottom = border_bottom;
+    layout_box.dimensions.padding.top = padding_top;
     layout_box.dimensions.padding.bottom = padding_bottom;
 
     layout_box.dimensions.content.x = containing.content.x 
@@ -271,7 +271,7 @@ pub fn layout<'a>(layout_box: &mut LayoutBox<'a>, containing: &Dimensions) {
 pub fn print_layout_tree(node: &LayoutBox, indent: usize){
     let padding = " ".repeat(indent);
     let d = &node.dimensions;
- 
+
     let label = match node.box_type {
         BoxType::Block => "Block",
         BoxType::Inline => "Inline",
@@ -286,7 +286,7 @@ pub fn print_layout_tree(node: &LayoutBox, indent: usize){
     }).unwrap_or_else(|| "(anon)".to_string());
  
     println!(
-        "{}{} {}  →  x:{:.1} y:{:.1} w:{:.1} h:{:.1}  [margin t:{:.1} r:{:.1} b:{:.1} l:{:.1}]",
+        "{}{} {}   →   x:{:.1} y:{:.1} w:{:.1} h:{:.1}    [margin t:{:.1} r:{:.1} b:{:.1} l:{:.1}]",
         padding, label, tag,
         d.content.x, d.content.y, d.content.width, d.content.height,
         d.margin.top, d.margin.right, d.margin.bottom, d.margin.left,

@@ -14,9 +14,9 @@ pub struct StyledNode {
 
 fn specificity(selector: &Selector) -> Specificity {
     match selector {
-        Selector::Id(_)    => (1, 0, 0),
+        Selector::Id(_) => (1, 0, 0),
         Selector::Class(_) => (0, 1, 0),
-        Selector::Type(_)  => (0, 0, 1),
+        Selector::Type(_) => (0, 0, 1),
     }
 }
 
