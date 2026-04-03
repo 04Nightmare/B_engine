@@ -1,4 +1,4 @@
-
+use crate::layout::{BoxType, LayoutBox, Rect};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color{
@@ -74,4 +74,116 @@ pub fn parse_color(value: &str) -> Option<Color> {
         "lime" => Color::rgb(0, 255, 0),
         _ => return None,
     })
+}
+
+
+fn get_color(layout_box: &LayoutBox, property: &str) -> Option<Color> {
+    // Anonymous boxes have no styled node, so they never have a color.
+    if layout_box.box_type == BoxType::Anonymous {
+        return None;
+    }
+    layout_box
+        .styled_node?
+        .specified_values
+        .get(property)
+        .and_then(|v| parse_color(v))
+}
+
+
+//Display List
+#[derive(Debug, Clone)]
+pub enum DisplayCommand {
+    SolidRect { color: Color, rect: Rect },
+}
+
+pub type DisplayList = Vec<DisplayCommand>;
+
+pub fn build_display_list(layout_root: &LayoutBox) -> DisplayList {
+    let mut list = Vec::new();
+    emit_commands(layout_root, &mut list);
+    list
+}
+ 
+fn emit_commands(layout_box: &LayoutBox, list: &mut DisplayList) {
+
+    emit_background(layout_box, list);
+ 
+    emit_borders(layout_box, list);
+ 
+    for child in &layout_box.children {
+        emit_commands(child, list);
+    }
+}
+
+//Background
+fn emit_background(layout_box: &LayoutBox, list: &mut DisplayList) {
+    if let Some(color) = get_color(layout_box, "background-color")
+        .or_else(|| get_color(layout_box, "background"))
+    {
+        list.push(DisplayCommand::SolidRect {
+            color,
+            rect: layout_box.dimensions.padding_box(),
+        });
+    }
+}
+
+//Borders
+fn emit_borders(layout_box: &LayoutBox, list: &mut DisplayList) {
+    let color = match get_color(layout_box, "border-color") {
+        Some(c) => c,
+        None    => return,
+    };
+ 
+    let d  = &layout_box.dimensions;
+    let border_bx = d.border_box();
+    let padding_bx = d.padding_box();
+ 
+    // Top border
+    if d.border.top > 0.0 {
+        list.push(DisplayCommand::SolidRect {
+            color,
+            rect: Rect {
+                x: border_bx.x,
+                y: border_bx.y,
+                width: border_bx.width, 
+                height: d.border.top
+            },
+        });
+    }
+    // Bottom border
+    if d.border.bottom > 0.0 {
+        list.push(DisplayCommand::SolidRect {
+            color,
+            rect: Rect {
+                x: border_bx.x,
+                y: padding_bx.y + padding_bx.height,
+                width: border_bx.width,
+                height: d.border.bottom,
+            },
+        });
+    }
+    // Left border
+    if d.border.left > 0.0 {
+        list.push(DisplayCommand::SolidRect {
+            color,
+            rect: Rect {
+                x: border_bx.x,
+                y: border_bx.y,
+                width: d.border.left,
+                height: border_bx.height,
+            },
+        });
+    }
+    // Right border
+    if d.border.right > 0.0 {
+        list.push(DisplayCommand::SolidRect {
+            color,
+            rect: Rect {
+                x: padding_bx.x + padding_bx.width,
+                y: border_bx.y,
+                width: d.border.right,
+                height: border_bx.height,
+            },
+        });
+    }
 }
