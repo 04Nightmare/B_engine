@@ -1,4 +1,4 @@
-use crate::layout::{BoxType, LayoutBox, Rect};
+use crate::{dom::NodeType, layout::{BoxType, LayoutBox, Rect}};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color{
@@ -186,4 +186,98 @@ fn emit_borders(layout_box: &LayoutBox, list: &mut DisplayList) {
             },
         });
     }
+}
+
+// Canvas
+pub struct Canvas {
+    pub pixels: Vec<Color>,
+    pub width:  usize,
+    pub height: usize,
+}
+
+impl Canvas{
+    pub fn new(width: usize, height: usize) -> Self {
+        return Canvas {
+            pixels: vec![Color::WHITE; width * height],
+            width,
+            height,
+        };
+    }
+
+    // paint a solid color rectangle
+    fn fill_rect(&mut self, rect: &Rect, color: Color) {
+        // Convert to integer pixel coordinates, clamped to [0, canvas size).
+        let x0 = (rect.x as usize).clamp(0, self.width);
+        let y0 = (rect.y as usize).clamp(0, self.height);
+        let x1 = ((rect.x + rect.width)  as usize).clamp(0, self.width);
+        let y1 = ((rect.y + rect.height) as usize).clamp(0, self.height);
+ 
+        for y in y0..y1 {
+            for x in x0..x1 {
+                self.pixels[y * self.width + x] = color;
+            }
+        }
+    }
+
+    // convert to a flat RGBA byte array.
+    pub fn to_rgba_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(self.pixels.len() * 4);
+        for px in &self.pixels {
+            bytes.push(px.r);
+            bytes.push(px.g);
+            bytes.push(px.b);
+            bytes.push(px.a);
+        }
+        return bytes;
+    }
+}
+
+//execute a display list against a canvas
+pub fn paint(list: &DisplayList, canvas: &mut Canvas) {
+    for command in list {
+        match command {
+            DisplayCommand::SolidRect { color, rect } => {
+                canvas.fill_rect(rect, *color);
+            }
+        }
+    }
+}
+
+// Saves a canvas to a PNG file
+pub fn save_png(canvas: &Canvas, path: &str) -> Result<(), image::ImageError> {
+    let bytes = canvas.to_rgba_bytes();
+    image::save_buffer(
+        path,
+        &bytes,
+        canvas.width  as u32,
+        canvas.height as u32,
+        image::ColorType::Rgba8,
+    )
+}
+
+//Debug
+pub fn print_display_list(list: &DisplayList) {
+    for (i, cmd) in list.iter().enumerate() {
+        match cmd {
+            DisplayCommand::SolidRect { color, rect } => {
+                println!(
+                    "  [{:02}] SolidRect  rgba({},{},{},{})  \
+                     x:{:.1} y:{:.1} w:{:.1} h:{:.1}",
+                    i,
+                    color.r, color.g, color.b, color.a,
+                    rect.x, rect.y, rect.width, rect.height,
+                );
+            }
+        }
+    }
+}
+
+//Debug
+pub fn layout_box_tag(layout_box: &LayoutBox) -> String {
+    layout_box.styled_node.map(|sn| {
+        match &sn.node.borrow().node_type {
+            NodeType::Element(e) => format!("<{}>", e.tag_name),
+            NodeType::Text(t)    => format!("\"{}\"", t.trim()),
+        }
+    }).unwrap_or_else(|| "(anon)".to_string())
 }

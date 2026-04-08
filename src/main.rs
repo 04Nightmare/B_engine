@@ -7,6 +7,7 @@ use dom::Node;
 use css::stylesheet::{Stylesheet, Selector};
 use css::style_tree::{StyledNode};
 use layout::{build_layout_tree, layout, print_layout_tree, Rect, Dimensions};
+use paint::{build_display_list, print_display_list, Canvas, paint, save_png};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -15,6 +16,7 @@ use std::iter::Peekable;
 use std::rc::Rc;
 use std::str::Chars;
 
+use crate::css::stylesheet;
 use crate::dom::{AttributeMap, NodeRef};
 
 
@@ -88,7 +90,7 @@ fn parse_tag_content(input: &str) -> (String, HashMap<String, String>) {
     let mut tag_name = String::new();
     let mut attributes = HashMap::new();
 
-    //this is getting the tag name
+    //getting the tag name
     while let Some(&ch) = char_iter.peek() {
         if ch.is_whitespace() {
             break;
@@ -109,7 +111,7 @@ fn parse_tag_content(input: &str) -> (String, HashMap<String, String>) {
         char_iter.next();
     }
 
-    //this is getting the attributes
+    //getting the attributes
     while char_iter.peek().is_some() {
         if let Some(&ch) = char_iter.peek() {
             if ch.is_alphabetic() {
@@ -194,41 +196,143 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
 fn main() {
     let css_input = "
-        div   { color: red; font-size: 16px; }
-        .box  { margin: 10px; }
-        #main { padding: 5px; }
+        body {
+            background-color: #939393;
+        }
+        div {
+            width: 300px;
+            margin-top: 20px;
+            margin-left: 30px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            padding-left: 15px;
+            padding-right: 15px;
+            background-color: #d95f4a;
+            border-color: #1a5fa8;
+            border-top: 3px;
+            border-bottom: 3px;
+            border-left: 3px;
+            border-right: 3px;
+            color: white;
+        }
+        p {
+            width: 300px;
+            margin-top: 15px;
+            margin-left: 30px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            padding-left: 10px;
+            padding-right: 10px;
+            background-color: #e8f4e8;
+            border-color: #79a02c;
+            border-top: 2px;
+            border-bottom: 2px;
+            border-left: 2px;
+            border-right: 2px;
+        }
+        .highlight {
+            background-color: #ffd700;
+            border-color: #b80cb8;
+        }
     ";
+ 
+    let html_input = r#"
+        <html>
+          <body>
+            <div>First block</div>
+            <p class="highlight">A highlighted paragraph</p>
+            <p>A plain paragraph</p>
+            <div>Second block</div>
+          </body>
+        </html>
+    "#;
 
     let stylesheet = Stylesheet::parse_css(css_input);
-    println!("{:#?}", stylesheet);
-
-    let html_input = "<html><body class=\"container\"><div id=\"main\" class=\"box\">attribute parsing</div><p>Hello World</p></body></html>";
     let tokens = tokenize(html_input);
-    let dom = dom_builder(tokens);
-    println!("{:#?}", &dom);
-    println!();
+    let dom  = dom_builder(tokens);
+
+    // Dom tree
+    println!("=== Dom Tree ===\n");
     Node::print(&dom);
+
     println!();
     println!("{}", "*".repeat(50));
     println!();
 
+    // Style tree
     let styled = StyledNode::style_tree_builder(&dom, &stylesheet);
-    println!("=== Styled Tree ===\n");
+    println!("\n=== Styled Tree ===\n");
     StyledNode::print_style_tree(&styled, 0);
 
-    //Root browser viewpoprt
+    println!();
+    println!("{}", "*".repeat(50));
+    println!();
+
+    // Layout Tree
     let viewport = Dimensions{
         content: Rect { x: 0.0, y: 0.0, width: 800.0, height: 0.0 },
         ..Default::default()
     };
+    let mut layout_root = match build_layout_tree(&styled) {
+        Some(r) => r,
+        None => {
+            eprintln!("Layout tree empty");
+            return;
+        }
+    };
+    layout(&mut layout_root, &viewport);
+    println!("\n=== Layout Tree ===\n");
+    print_layout_tree(&layout_root, 0);
 
-    if let Some(mut layout_root) = build_layout_tree(&styled){
-        layout(&mut layout_root, &viewport);
-        println!();
-        println!("{}", "*".repeat(50));
-        println!();
-        println!("\n=== Layout Tree ===\n");
-        print_layout_tree(&layout_root, 0);
+    println!();
+    println!("{}", "*".repeat(50));
+    println!();
+
+    // Display list
+    let display_list = build_display_list(&layout_root);
+    println!("\n=== Display List ===\n");
+    print_display_list(&display_list);
+
+    
+    // 4. Paint → canvas → PNG
+    let mut canvas = Canvas::new(800, 600);
+    paint(&display_list, &mut canvas);
+ 
+    match save_png(&canvas, "output.png") {
+        Ok(_)  => println!("\n  Saved output.png  (800x600)"),
+        Err(e) => eprintln!("Failed to save PNG: {}", e),
     }
-   
+
+    
 }
+
+// let stylesheet = Stylesheet::parse_css(css_input);
+//     println!("{:#?}", stylesheet);
+
+//     let tokens = tokenize(html_input);
+//     let dom = dom_builder(tokens);
+//     println!("{:#?}", &dom);
+//     println!();
+//     Node::print(&dom);
+//     println!();
+//     println!("{}", "*".repeat(50));
+//     println!();
+
+//     let styled = StyledNode::style_tree_builder(&dom, &stylesheet);
+//     println!("=== Styled Tree ===\n");
+//     StyledNode::print_style_tree(&styled, 0);
+
+//     //Root browser viewpoprt
+//     let viewport = Dimensions{
+//         content: Rect { x: 0.0, y: 0.0, width: 800.0, height: 0.0 },
+//         ..Default::default()
+//     };
+
+//     if let Some(mut layout_root) = build_layout_tree(&styled){
+//         layout(&mut layout_root, &viewport);
+//         println!();
+//         println!("{}", "*".repeat(50));
+//         println!();
+//         println!("\n=== Layout Tree ===\n");
+//         print_layout_tree(&layout_root, 0);
+//     }
