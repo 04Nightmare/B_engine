@@ -179,7 +179,7 @@ fn emit_borders(layout_box: &LayoutBox, list: &mut DisplayList) {
         list.push(DisplayCommand::SolidRect {
             color,
             rect: Rect {
-                x: padding_bx.x + padding_bx.width,
+                x: border_bx.x + border_bx.width - d.border.right,
                 y: border_bx.y,
                 width: d.border.right,
                 height: border_bx.height,

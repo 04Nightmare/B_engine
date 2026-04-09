@@ -197,7 +197,7 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 fn main() {
     let css_input = "
         body {
-            background-color: #939393;
+            background-color: #f0f0f0;
         }
         div {
             width: 300px;
@@ -207,7 +207,7 @@ fn main() {
             padding-bottom: 10px;
             padding-left: 15px;
             padding-right: 15px;
-            background-color: #d95f4a;
+            background-color: #4a90d9;
             border-color: #1a5fa8;
             border-top: 3px;
             border-bottom: 3px;
@@ -224,7 +224,7 @@ fn main() {
             padding-left: 10px;
             padding-right: 10px;
             background-color: #e8f4e8;
-            border-color: #79a02c;
+            border-color: #5a9a5a;
             border-top: 2px;
             border-bottom: 2px;
             border-left: 2px;
@@ -232,7 +232,7 @@ fn main() {
         }
         .highlight {
             background-color: #ffd700;
-            border-color: #b80cb8;
+            border-color: #b8960c;
         }
     ";
  
