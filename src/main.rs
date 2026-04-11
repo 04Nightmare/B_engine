@@ -15,6 +15,8 @@ use std::default;
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::str::Chars;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Read};
 
 use crate::css::stylesheet;
 use crate::dom::{AttributeMap, NodeRef};
@@ -195,57 +197,36 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
 
 fn main() {
-    let css_input = "
-        body {
-            background-color: #f0f0f0;
+     // Read contents from index.html file. 
+    let html_file = File::open("index.html");
+    let mut buffer = String::new();
+    match html_file {
+        Ok(html_file) => {
+            let mut reader = BufReader::new(html_file);
+            reader.read_to_string(&mut buffer).unwrap();
         }
-        div {
-            width: 300px;
-            margin-top: 20px;
-            margin-left: 30px;
-            padding-top: 10px;
-            padding-bottom: 10px;
-            padding-left: 15px;
-            padding-right: 15px;
-            background-color: #4a90d9;
-            border-color: #1a5fa8;
-            border-top: 3px;
-            border-bottom: 3px;
-            border-left: 3px;
-            border-right: 3px;
-            color: white;
+        Err(e) => {
+            eprintln!("{}", e);
         }
-        p {
-            width: 300px;
-            margin-top: 15px;
-            margin-left: 30px;
-            padding-top: 8px;
-            padding-bottom: 8px;
-            padding-left: 10px;
-            padding-right: 10px;
-            background-color: #e8f4e8;
-            border-color: #5a9a5a;
-            border-top: 2px;
-            border-bottom: 2px;
-            border-left: 2px;
-            border-right: 2px;
+    }
+    let html_input: &str = buffer.as_str();
+   
+
+    // Read contents from styles.css file
+    let css_file = File::open("styles.css");
+    let mut buffer = String::new();
+    match css_file {
+        Ok(css_file) => {
+            let mut reader = BufReader::new(css_file);
+            reader.read_to_string(&mut buffer).unwrap();
         }
-        .highlight {
-            background-color: #ffd700;
-            border-color: #b8960c;
+        Err(e) =>{
+            eprintln!("{}", e);
         }
-    ";
+    }
+    let css_input: &str = buffer.as_str();
  
-    let html_input = r#"
-        <html>
-          <body>
-            <div>First block</div>
-            <p class="highlight">A highlighted paragraph</p>
-            <p>A plain paragraph</p>
-            <div>Second block</div>
-          </body>
-        </html>
-    "#;
+
 
     let stylesheet = Stylesheet::parse_css(css_input);
     let tokens = tokenize(html_input);
@@ -305,34 +286,3 @@ fn main() {
 
     
 }
-
-// let stylesheet = Stylesheet::parse_css(css_input);
-//     println!("{:#?}", stylesheet);
-
-//     let tokens = tokenize(html_input);
-//     let dom = dom_builder(tokens);
-//     println!("{:#?}", &dom);
-//     println!();
-//     Node::print(&dom);
-//     println!();
-//     println!("{}", "*".repeat(50));
-//     println!();
-
-//     let styled = StyledNode::style_tree_builder(&dom, &stylesheet);
-//     println!("=== Styled Tree ===\n");
-//     StyledNode::print_style_tree(&styled, 0);
-
-//     //Root browser viewpoprt
-//     let viewport = Dimensions{
-//         content: Rect { x: 0.0, y: 0.0, width: 800.0, height: 0.0 },
-//         ..Default::default()
-//     };
-
-//     if let Some(mut layout_root) = build_layout_tree(&styled){
-//         layout(&mut layout_root, &viewport);
-//         println!();
-//         println!("{}", "*".repeat(50));
-//         println!();
-//         println!("\n=== Layout Tree ===\n");
-//         print_layout_tree(&layout_root, 0);
-//     }
