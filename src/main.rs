@@ -2,6 +2,7 @@ mod css;
 mod dom;
 mod layout;
 mod paint;
+mod font;
 
 use dom::Node;
 use css::stylesheet::{Stylesheet, Selector};
