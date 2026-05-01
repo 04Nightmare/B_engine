@@ -1,4 +1,4 @@
-use rusttype::{Font, Scale, point};
+use rusttype::{Font, Scale, GlyphId, point};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -47,9 +47,45 @@ impl<'a> FontCache<'a> {
         }
     }
 
-    // Pulls pair kerning tables for character combinations
+    // Maps a character to its glyph ID using the font's cmap table
+    pub fn glyph_id_for_char(&self, c: char) -> Option<u16> {
+        let id = self.font.glyph(c).id().0;
+        if id == 0 { None } else { Some(id) }
+    }
+
+    // Applies kerning between two characters by resolving their glyph IDs first
     pub fn kerning(&self, c1: char, c2: char, size: f32) -> f32 {
         self.font.pair_kerning(Scale::uniform(size), c1, c2)
+    }
+
+    // Lays out a string of characters: maps each char to a glyph ID,
+    // applies kerning between consecutive pairs, and returns a list of
+    // (glyph_id, x_position, y_position) along with the total advance width.
+    pub fn layout_text(&self, text: &str, size: f32) -> (Vec<(GlyphId, f32, f32)>, f32) {
+        let scale = Scale::uniform(size);
+        let v_metrics = self.font.v_metrics(scale);
+        let mut positions = Vec::new();
+        let mut x = 0.0f32;
+        let y = v_metrics.ascent;
+
+        let glyph_ids: Vec<GlyphId> = text
+            .chars()
+            .map(|c| self.font.glyph(c).id())
+            .filter(|gid| gid.0 != 0)
+            .collect();
+
+        for (i, &gid) in glyph_ids.iter().enumerate() {
+            if i > 0 {
+                let prev = glyph_ids[i - 1];
+                x += self.font.pair_kerning(scale, prev, gid);
+            }
+            positions.push((gid, x, y));
+
+            let glyph = self.font.glyph(gid).scaled(scale);
+            x += glyph.h_metrics().advance_width;
+        }
+
+        (positions, x)
     }
 
     // Retrieves cached glyph bitmaps
