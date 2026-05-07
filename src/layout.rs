@@ -1,5 +1,6 @@
 use crate::css::style_tree::StyledNode;
 use crate::dom::NodeType;
+use crate::font::FontCache;
 
 #[derive(Debug, Clone, Default)]
 pub struct Rect {
@@ -188,17 +189,10 @@ pub fn build_layout_tree<'a>(styled: &'a StyledNode) -> Option<LayoutBox<'a>> {
     return Some(layout_box);
 }
 
-fn layout_block(layout_box: &mut LayoutBox, containing: &Dimensions) {
-    // Step 1: width is resolved from the containing block's width.
+fn layout_block(layout_box: &mut LayoutBox, containing: &Dimensions, font: &FontCache) {
     calculate_block_width(layout_box, containing);
-
-    // Step 2: position (x, y) is set based on containing block + sibling heights.
     calculate_block_position(layout_box, containing);
-
-    // Step 3: recurse — lay out children inside this box.
-    layout_block_children(layout_box);
-
-    // Step 4: height is either explicit or the sum of children.
+    layout_block_children(layout_box, font);
     calculate_block_height(layout_box);
 }
 
@@ -274,20 +268,114 @@ fn calculate_block_height(layout_box: &mut LayoutBox) {
 }
 
 //Children
-fn layout_block_children(layout_box: &mut LayoutBox) {
+fn layout_block_children(layout_box: &mut LayoutBox, font: &FontCache) {
     let mut containing_snapshot = layout_box.dimensions.clone();
 
     for child in &mut layout_box.children {
-        layout(child, &containing_snapshot);
+        layout(child, &containing_snapshot, font);
         containing_snapshot.content.height += child.dimensions.margin_box().height;
     }
 
     layout_box.dimensions.content.height = containing_snapshot.content.height;
 }
 
-pub fn layout<'a>(layout_box: &mut LayoutBox<'a>, containing: &Dimensions) {
+fn layout_inline<'a>(layout_box: &mut LayoutBox<'a>, containing: &Dimensions, font: &FontCache) {
+    let available_width = containing.content.width;
+    let font_size = layout_box.px("font-size");
+    let font_size = if font_size > 0.0 { font_size } else { 16.0 };
+
+    let metrics = font.metrics(font_size);
+    let line_height = metrics.line_height;
+
+    let mut x = containing.content.x;
+    let mut y = containing.content.y;
+    let mut line_height_accum = 0.0;
+
+    let children_len = layout_box.children.len();
+    for i in 0..children_len {
+        let child = &mut layout_box.children[i];
+        match child.box_type {
+            BoxType::Inline => {
+                layout_inline_child(child, containing, &mut x, &mut y, available_width, line_height, font_size, font, &mut line_height_accum);
+            }
+            BoxType::Anonymous => {
+                layout(child, containing, font);
+                y += child.dimensions.margin_box().height;
+                x = containing.content.x;
+            }
+            BoxType::Block => {}
+        }
+    }
+
+    layout_box.dimensions.content.x = containing.content.x;
+    layout_box.dimensions.content.y = containing.content.y;
+    layout_box.dimensions.content.width = available_width;
+    layout_box.dimensions.content.height = line_height_accum;
+}
+
+fn layout_inline_child<'a>(
+    child: &mut LayoutBox<'a>,
+    containing: &Dimensions,
+    x: &mut f32,
+    y: &mut f32,
+    available_width: f32,
+    line_height: f32,
+    font_size: f32,
+    font: &FontCache,
+    line_height_accum: &mut f32,
+) {
+    if let Some(sn) = child.styled_node {
+        if let NodeType::Text(text) = &sn.node.borrow().node_type {
+            let words: Vec<&str> = text.split_whitespace().collect();
+            for word in words {
+                let (_, word_width) = font.layout_text(word, font_size);
+                let word_w = word_width + 4.0; // space between words
+
+                if *x + word_width > containing.content.x + available_width && *x > containing.content.x {
+                    *x = containing.content.x;
+                    *y += line_height;
+                }
+
+                if *x == containing.content.x && *y == containing.content.y {
+                    *line_height_accum = line_height;
+                } else if *y + line_height > containing.content.y + *line_height_accum {
+                    *line_height_accum += line_height;
+                }
+
+                child.dimensions.content.x = *x;
+                child.dimensions.content.y = *y;
+                child.dimensions.content.width = word_width;
+                child.dimensions.content.height = line_height;
+
+                *x += word_w;
+            }
+        } else {
+            layout(child, containing, font);
+            let child_w = child.dimensions.margin_box().width;
+
+            if *x + child_w > containing.content.x + available_width && *x > containing.content.x {
+                *x = containing.content.x;
+                *y += line_height;
+            }
+
+            if *x == containing.content.x && *y == containing.content.y {
+                *line_height_accum = line_height;
+            } else if *y + line_height > containing.content.y + *line_height_accum {
+                *line_height_accum += line_height;
+            }
+
+            child.dimensions.content.x = *x;
+            child.dimensions.content.y = *y;
+
+            *x += child_w;
+        }
+    }
+}
+
+pub fn layout<'a>(layout_box: &mut LayoutBox<'a>, containing: &Dimensions, font: &FontCache) {
     match layout_box.box_type {
-        BoxType::Block | BoxType::Anonymous => layout_block(layout_box, containing),
+        BoxType::Block => layout_block(layout_box, containing, font),
+        BoxType::Anonymous => layout_inline(layout_box, containing, font),
         BoxType::Inline => {}
     }
 }
