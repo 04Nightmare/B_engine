@@ -9,18 +9,15 @@ use css::stylesheet::{Stylesheet, Selector};
 use css::style_tree::{StyledNode};
 use layout::{build_layout_tree, layout, print_layout_tree, Rect, Dimensions};
 use paint::{build_display_list, print_display_list, Canvas, paint, save_png};
+use font::FontCache;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::default;
 use std::iter::Peekable;
-use std::rc::Rc;
 use std::str::Chars;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufReader, Read};
 
-use crate::css::stylesheet;
-use crate::dom::{AttributeMap, NodeRef};
+use crate::dom::NodeRef;
 
 
 
@@ -198,7 +195,17 @@ fn dom_builder(tokens: Vec<Token>) -> NodeRef {
 
 
 fn main() {
-     // Read contents from index.html file. 
+    const FONT_DATA: &[u8] = include_bytes!("../fonts/font.ttf");
+
+    let mut font = match FontCache::new(FONT_DATA) {
+        Some(f) => f,
+        None => {
+            eprintln!("Failed to load font");
+            return;
+        }
+    };
+
+     // Read contents from index.html file.
     let html_file = File::open("index.html");
     let mut buffer = String::new();
     match html_file {
@@ -211,7 +218,7 @@ fn main() {
         }
     }
     let html_input: &str = buffer.as_str();
-   
+
 
     // Read contents from styles.css file
     let css_file = File::open("styles.css");
@@ -226,7 +233,7 @@ fn main() {
         }
     }
     let css_input: &str = buffer.as_str();
- 
+
 
 
     let stylesheet = Stylesheet::parse_css(css_input);
@@ -262,7 +269,7 @@ fn main() {
             return;
         }
     };
-    layout(&mut layout_root, &viewport);
+    layout(&mut layout_root, &viewport, &font);
     println!("\n=== Layout Tree ===\n");
     print_layout_tree(&layout_root, 0);
 
@@ -275,15 +282,16 @@ fn main() {
     println!("\n=== Display List ===\n");
     print_display_list(&display_list);
 
-    
+
     // 4. Paint → canvas → PNG
     let mut canvas = Canvas::new(800, 600);
     paint(&display_list, &mut canvas);
- 
+
     match save_png(&canvas, "output.png") {
         Ok(_)  => println!("\n  Saved output.png  (800x600)"),
         Err(e) => eprintln!("Failed to save PNG: {}", e),
     }
 
-    
+
+
 }

@@ -53,7 +53,7 @@ impl<'a> FontCache<'a> {
         if id == 0 { None } else { Some(id) }
     }
 
-    // Applies kerning between two characters by resolving their glyph IDs first
+    // Applies kerning between two characters solving the glyphID's
     pub fn kerning(&self, c1: char, c2: char, size: f32) -> f32 {
         self.font.pair_kerning(Scale::uniform(size), c1, c2)
     }
